@@ -11,14 +11,14 @@
 
 //callback functions
 void (*I2C_1_callback) (void);
+void (*I2C_1_error_callback) (uint8_t status_reg, uint8_t control_reg);
 
 //channel data structures
 I2C_Data i2c_1_handle;
 
 
-
 I2C_Data* setup_I2C(uint32_t sys_clk, uint8_t *rx_buffer_ptr, uint16_t rx_buffer_size,
-uint8_t *tx_buffer_ptr, uint16_t tx_buffer_size, void* callback) {
+uint8_t *tx_buffer_ptr, uint16_t tx_buffer_size, void* general_callback, void* error_callback) {
 
     TWBR = ((sys_clk/I2C_SPEED) - 16)/2; //calculate the proper divider
 
@@ -26,9 +26,12 @@ uint8_t *tx_buffer_ptr, uint16_t tx_buffer_size, void* callback) {
     i2c_1_handle.Rx_queue = create_queue(rx_buffer_ptr, rx_buffer_size);
     i2c_1_handle.Tx_queue = create_queue(tx_buffer_ptr, tx_buffer_size);
 
-    I2C_1_callback = callback; //link the callback function
+    I2C_1_callback = general_callback; //link the callback function
+    I2C_1_error_callback = error_callback;
 
     i2c_1_handle.is_idle = TRUE; //set the I2C state machine to idling
+    
+    TWCR = (1 << TWEN) | (1 << TWIE);
 
     return &i2c_1_handle;
 
@@ -66,7 +69,7 @@ I2C_Mode read_write, void* callback) {
 void bg_process_I2C(void) {
     I2C_Node current_node;
 
-    //process channel 1
+    //process receive queue
     while (!dequeue(&(i2c_1_handle.Rx_queue), (uint8_t*) & current_node, sizeof (current_node))) {
         if (current_node.callback != NULL) {
             current_node.callback(current_node);
@@ -193,12 +196,20 @@ ISR(TWI_vect)
         break; //don't do anything
 
 
-        default: //unhandled error code
-        //some sort of error handling?
+        default: //unhandled error
+        if (I2C_1_error_callback != NULL)
+        {
+            I2C_1_error_callback(TWSR, TWCR); //call error callback
+        }        
         TWCR |= (1 << TWINT) | (1 << TWSTO); //send the stop signal
         i2c_1_handle.is_idle = FALSE;
         sub_addr_sent = FALSE;
         break;
 
+    }
+    
+    if (I2C_1_callback != NULL)
+    {
+        I2C_1_callback(); //call callback
     }
 }
