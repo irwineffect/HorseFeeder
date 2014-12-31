@@ -10,6 +10,7 @@
 #define SYSTEM_H_
 
 #include <avr/io.h>
+#include <stddef.h>
 
 typedef enum {
 FALSE,

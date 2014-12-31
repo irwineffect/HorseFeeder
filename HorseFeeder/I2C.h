@@ -53,14 +53,14 @@ typedef struct I2C_NODE {
     void (*callback) (struct I2C_NODE); //callback function
 } I2C_Node;
 
-I2C_Data setup_I2C(uint32_t pb_clk, uint8_t *rx_buffer_ptr, uint16_t rx_buffer_size,
+I2C_Data* setup_I2C(uint32_t pb_clk, uint8_t *rx_buffer_ptr, uint16_t rx_buffer_size,
 uint8_t *tx_buffer_ptr, uint16_t tx_buffer_size, void* callback);
 
 uint8_t send_I2C(uint8_t device_id, uint8_t device_address,
 uint8_t sub_address, uint8_t* data_buffer, uint8_t data_size,
 I2C_Mode read_write, void* callback);
 
-uint8_t bg_process_I2C(void);
+void bg_process_I2C(void);
 
 
 
