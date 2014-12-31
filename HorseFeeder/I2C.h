@@ -14,14 +14,16 @@
 
 #define I2C_SPEED (100000)
 
-#define I2C_STATUS_MASK 0xF8
-#define I2C_START       0x08
-#define I2C_RESTART		0x10
-#define I2C_MT_SLA_ACK  0x18
-#define I2C_MR_SLA_ACK  0x40
-#define I2C_MT_DATA_ACK 0x28
-#define I2C_MR_DATA_ACK 0x58
-#define I2C_BUSY        0xF8
+//status codes
+#define I2C_STATUS_MASK  0xF8
+#define I2C_START        0x08
+#define I2C_RESTART		 0x10
+#define I2C_MT_SLA_ACK   0x18
+#define I2C_MT_DATA_ACK  0x28
+#define I2C_MR_SLA_ACK   0x40
+#define I2C_MR_DATA_ACK  0x50
+#define I2C_MR_DATA_NACK 0x58
+#define I2C_BUSY         0xF8
 
 typedef enum //reading or writing from the device
 {
