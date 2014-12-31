@@ -21,6 +21,7 @@
 #define I2C_MR_SLA_ACK  0x40
 #define I2C_MT_DATA_ACK 0x28
 #define I2C_MR_DATA_ACK 0x58
+#define I2C_BUSY        0xF8
 
 typedef enum //reading or writing from the device
 {

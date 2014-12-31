@@ -79,7 +79,8 @@ uint8_t bg_process_I2C(void); {
 ISR(TWI_vect)
 {
     uint8_t status;
-    static uint8 data_index;
+    static uint8_t data_index;
+    static bool sub_addr_sent;
 
     //get status of I2C bus
     status = (TWSR & I2C_STATUS_MASK);
@@ -87,23 +88,36 @@ ISR(TWI_vect)
     switch (status)
     {
         case I2C_START:
-        TWDR = get_write_addr(current_node.device_address);
-        TWCR = (1 << TWINT);
-        data_index = 0;
+        if (dequeue(&(i2c_1_handle.Tx_queue), (uint8_t*) & current_node, sizeof (current_node)))
+        { //no data in queue, this should never happen
+            TWCR |= (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); //send the stop signal, clean the bus
+            i2c_1_handle.is_idle = TRUE;
+        }
+        else
+        {
+            TWDR = get_write_addr(current_node.device_address); //initiate a write always when starting
+            TWCR |= (1 << TWINT) | (1 << TWEN);
+            data_index = 0;
+            i2c_1_handle.is_idle = FALSE;
+            sub_addr_sent = FALSE;
+        }
         break;
 
         case I2C_RESTART:
+        if (!sub_addr_sent) {
+            TWDR = get_write_addr(current_node.device_address);
+        }
         if (current_node.mode == READ) {
             TWDR = get_read_addr(current_node.device_address);
             }else{
             TWDR = get_write_addr(current_node.device_address);
         }
-        TWCR = (1 << TWINT);
+        TWCR |= (1 << TWINT) | (1 << TWEN);
         break;
 
         case I2C_MT_SLA_ACK: //send the sub address
         TWDR = current_node.sub_address;
-        TWCR = (1 << TWINT);
+        TWCR |= (1 << TWINT) | (1 << TWEN);
         break;
 
         case I2C_MT_DATA_ACK: //send write data
@@ -111,28 +125,36 @@ ISR(TWI_vect)
         {
             //send more data
             TWDR = current_node.data_buffer[data_index];
-            TWCR = (1 << TWINT);
+            TWCR |= (1 << TWINT) | (1 << TWEN);
 
         }
         else { //we are done writing, time for next transaction
             //check for more nodes
             if (dequeue(&(i2c_1_handle.Tx_queue), (uint8_t*) & current_node, sizeof (current_node))) //load next node from the queue
             {
-                TWCR = (1 << TWINT) | (1 << TWSTO); //send stop bit
+                TWCR |= (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); //send stop bit
                 i2c_1_handle.is_idle = TRUE; //flag that the bus is idle (nothing in the send queue)
             }
             else { //there is a new transaction to start
-                TWCR = (1 << TWINT) | (1 <<TWSTA); //send restart signal
+                TWCR |= (1 << TWINT) | (1 << TWEN) | (1 <<TWSTA) | (1 << TWSTO); //send stop and then start signal
             }
         }
         ++data_index;
         break;
+        
+        case I2C_BUSY: //bus is busy, we shouldn't have entered ISR
+        break; //don't do anything
 
 
-        default:
+        default: //unhandled error code
         //some sort of error handling?
+        TWCR |= (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); //send the stop signal
+        i2c_1_handle.is_idle = FALSE;
 
     }
+    
+    
+    
     //send start
     TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN); //initiate an I2C transaction
 
